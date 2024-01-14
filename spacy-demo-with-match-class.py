@@ -23,7 +23,6 @@ class NERModel(Model):
         Override of the abstract predict method.
         Specifically returns a list of strings as predictions.
         """
-        # Placeholder implementation
         pass
 
 
@@ -50,7 +49,6 @@ class MatchGroup:
         self.unique_id_ = set([x.unique_id for x in matches])
 
     def to_token_labels(self):
-        # Method to convert matches to a list of token labels
         token_labels = len(self.doc) * ["O"]
         for match in self.matches:
             start, end = match.start_index, match.end_index
@@ -59,7 +57,6 @@ class MatchGroup:
         return token_labels
 
     def to_token_text_label_tuples(self):
-        # Method to convert matches to a list of token labels
         tuples = [(token, "O") for token in self.doc]
         for match in self.matches:
             start, end = match.start_index, match.end_index
@@ -75,7 +72,6 @@ class MatchGroup:
 
     @property
     def unique_id(self):
-        # Unique identifier based on start and end index
         return frozenset(self.unique_id_)
 
 
@@ -84,7 +80,6 @@ class MatchGroupList(list):
         if not self:
             return []
 
-        # Initialize the combined label list with 'O's
         combined_labels = len(self[0].doc) * ["O"]
 
         for match_group in self:
@@ -99,7 +94,6 @@ class MatchGroupList(list):
         if not self:
             return []
 
-        # Initialize the combined label list with 'O's
         combined_labels = [(token, "O") for token in self[0].doc]
 
         for match_group in self:
@@ -174,17 +168,13 @@ class RuleBasedTokenClassifier(NERModel):
             self.ent_types.add(pattern["label"])
 
     def process_text(self, text):
-        # Process the text with the NLP pipeline
         doc = self.nlp(text)
 
-        # Apply the DependencyMatcher
         matches = self.matcher(doc)
 
-        # Extract and report entities uniquely
         lab_entities = defaultdict(set)
 
         matches = []
-        # Matching dependency patterns
         for match_id, token_ids in self.matcher(doc):
             match = []
             for key in token_ids:
@@ -216,7 +206,6 @@ class RuleBasedTokenClassifier(NERModel):
             for key in token_ids:
                 entity = doc[key]
                 reported_tokens.add(entity.text)
-                # Create a MatchDetails instance and add it to matches
                 match_details = Match(
                     label=entity.ent_type_,
                     annotated_text=entity.text,
@@ -285,7 +274,6 @@ processor.add_tokenizer_infix_pattern(r"\.")
 processor.add_tokenizer_special_case("mg/dL.", [{ORTH: "mg/dL"}, {ORTH: "."}])
 processor.add_tokenizer_special_case("mmol/L.", [{ORTH: "mmol/L"}, {ORTH: "."}])
 
-# Define patterns for EntityRuler
 patterns = [
     {"label": "LAB_RESULT", "pattern": [{"LOWER": {"in": ["positive", "negative"]}}]},
     {"label": "LAB_RESULT", "pattern": [{"LIKE_NUM": True}]},
@@ -296,9 +284,7 @@ patterns = [
 processor.add_entity_ruler_patterns(patterns)
 
 reported_tokens = set()
-# Updated dependency patterns to capture trios, duos, and single entities
 dependency_patterns = [
-    # Trio Pattern: LAB_RESULT connected to both LAB_UNIT and LAB_TYPE
     [
         {"RIGHT_ID": "lab_result", "RIGHT_ATTRS": {"ENT_TYPE": "LAB_RESULT"}},
         {
@@ -318,7 +304,6 @@ dependency_patterns = [
             },
         },
     ],
-    # Duo Patterns: LAB_RESULT and LAB_UNIT
     [
         {"RIGHT_ID": "lab_result", "RIGHT_ATTRS": {"ENT_TYPE": "LAB_RESULT"}},
         {
@@ -330,7 +315,6 @@ dependency_patterns = [
             },
         },
     ],
-    # LAB_RESULT and LAB_TYPE
     [
         {"RIGHT_ID": "lab_result", "RIGHT_ATTRS": {"ENT_TYPE": "LAB_RESULT"}},
         {
@@ -340,7 +324,6 @@ dependency_patterns = [
             "RIGHT_ATTRS": {"ENT_TYPE": "LAB_TYPE"},
         },
     ],
-    # LAB_UNIT and LAB_TYPE
     [
         {"RIGHT_ID": "lab_unit", "RIGHT_ATTRS": {"ENT_TYPE": "LAB_UNIT"}},
         {
@@ -350,7 +333,15 @@ dependency_patterns = [
             "RIGHT_ATTRS": {"ENT_TYPE": "LAB_TYPE"},
         },
     ],
-    # Single Patterns: LAB_RESULT, LAB_UNIT, LAB_TYPE
+    [
+        {"RIGHT_ID": "B-diagnosis", "RIGHT_ATTRS": {"ENT_TYPE": "diagnosis"}},
+        {
+            "LEFT_ID": "B-diagnosis",
+            "REL_OP": ".",
+            "RIGHT_ID": "I-diagnosis",
+            "RIGHT_ATTRS": {"ENT_TYPE": "diagnosis"},
+        },
+    ],
     [{"RIGHT_ID": "lab_result", "RIGHT_ATTRS": {"ENT_TYPE": "LAB_RESULT"}}],
     [
         {
@@ -363,12 +354,11 @@ dependency_patterns = [
 ]
 
 processor.add_dependency_matcher_patterns("lab_dependency", dependency_patterns)
-# patterns = [
-#     {"label": "diagnosis", "pattern": [{"lower": "malignant"}, {"lower": "melanoma"}]},
-# ]
-# processor.add_span_patterns(patterns)
+patterns = [
+    {"label": "diagnosis", "pattern": [{"lower": "malignant"}, {"lower": "melanoma"}]},
+]
+processor.add_span_patterns(patterns)
 
-# Process the text
 text = "The cholesterol level is 200 mg/dL. The glucose result is 120 mmol/L. The test came back positive. The patient has malignant melanoma."
 
 print("Match Groups")
@@ -377,5 +367,3 @@ print("\n\n")
 prediction = processor.predict(text)
 print("Single list of entity types")
 print(prediction)
-
-processor.display_deps(text)
