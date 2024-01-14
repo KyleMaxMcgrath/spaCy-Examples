@@ -18,6 +18,7 @@ class Model(ABC):
 
 
 class NERModel(Model):
+    @abstractmethod
     def predict(self) -> List[str]:
         """
         Override of the abstract predict method.
